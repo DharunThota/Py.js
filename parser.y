@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define MAX 1024
 
 // Function declarations
 void yyerror(const char *s);
@@ -9,6 +10,29 @@ int yylex(void);
 
 void emit(const char *code) {
     printf("%s",code);
+}
+
+struct symbol {
+    char name[128];
+    int scope_id;
+}sym_tbl[MAX];
+
+int sym_count = 0;
+int scope_count = 0;
+
+int is_declared(char *name, int scope) {
+    for(int i=0;i<sym_count;i++) {
+        if(strcmp(sym_tbl[i].name,name) == 0 && sym_tbl[i].scope_id == scope) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void declare(char *name, int scope) {
+    strcpy(sym_tbl[sym_count].name,name);
+    sym_tbl[sym_count].scope_id = scope;
+    sym_count++;
 }
 
 
@@ -54,7 +78,13 @@ statement:
     | VARIABLE ASSIGN expression
     {
         char buffer[128];
-        snprintf(buffer, sizeof(buffer), "let %s = %s;\n", $1, $3);
+        if(is_declared($1,0) == 0) {
+            declare($1,0);
+            snprintf(buffer, sizeof(buffer), "let %s = %s;\n", $1, $3);
+        } else {
+            snprintf(buffer, sizeof(buffer), "%s = %s;\n", $1, $3);
+        }
+        
         emit(buffer);
         $$ = "";
     }
