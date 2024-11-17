@@ -17,6 +17,7 @@ void print_token(const char *token, const char *value) {
 
 %%
 
+\n              { print_token("NEWLINE", "\\n"); return NEWLINE; }
 \r              { print_token("CARRIAGE RETURN", "\\r"); return NEWLINE; }
 "def"           { print_token("KEYWORD", "def"); return DEF; }
 "if"            { print_token("KEYWORD", "if"); return IF; }

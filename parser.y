@@ -9,20 +9,20 @@ void yyerror(const char *s);
 int yylex(void);
 
 void emit(const char *code) {
-    printf("%s",code);
+    printf("%s", code);
 }
 
 struct symbol {
     char name[128];
     int scope_id;
-}sym_tbl[MAX];
+} sym_tbl[MAX];
 
 int sym_count = 0;
 int scope_count = 0;
 
 int is_declared(char *name, int scope) {
-    for(int i=0;i<sym_count;i++) {
-        if(strcmp(sym_tbl[i].name,name) == 0 && sym_tbl[i].scope_id == scope) {
+    for (int i = 0; i < sym_count; i++) {
+        if (strcmp(sym_tbl[i].name, name) == 0 && sym_tbl[i].scope_id == scope) {
             return 1;
         }
     }
@@ -30,11 +30,10 @@ int is_declared(char *name, int scope) {
 }
 
 void declare(char *name, int scope) {
-    strcpy(sym_tbl[sym_count].name,name);
+    strcpy(sym_tbl[sym_count].name, name);
     sym_tbl[sym_count].scope_id = scope;
     sym_count++;
 }
-
 
 %}
 
@@ -51,55 +50,91 @@ void declare(char *name, int scope) {
 %left PLUS MINUS MULT DIVIDE
 %token LPAREN RPAREN LBRACE RBRACE COLON COMMA
 %token NEWLINE
-%type <str> expression term program  statement 
+%type <str> expression term program statements statement print_statement assignment if_statement
 
 %%
 
 program:
-    statement NEWLINE program
+    statements{
+        emit($1);
+    }
+    ;
+
+statements:
+    statement NEWLINE statements
+    {
+        char *buffer = malloc(strlen($1) + strlen($3) + 2);
+        sprintf(buffer, "%s\n%s", $1, $3);
+        $$ = buffer;
+    }
     |
     statement NEWLINE
+    {
+        char *buffer = malloc(strlen($1) + 2);
+        sprintf(buffer, "%s\n", $1);
+        $$ = buffer;
+    }
     |
     statement
-    /* empty */
+    {
+        $$ = $1;
+    }
+    | NEWLINE statements
+    {
+        char *buffer = malloc(strlen($2) + 1);
+        sprintf(buffer, "\n%s", $2);
+        $$ = buffer;
+    }
     ;
 
 statement:
+    print_statement
+    | assignment
+    | if_statement
+    ;
+
+print_statement:
     PRINT LPAREN expression RPAREN
     {
-        char buffer[1024];
-        snprintf(buffer, sizeof(buffer), "%s", $3);
-        emit("console.log(");
-        emit(buffer); // Expression to print
-        emit(");\n");
-        $$ = ""; // Return an empty string
-
+        char *buffer = malloc(strlen($3) + 15);
+        sprintf(buffer, "console.log(%s);", $3);
+        $$ = buffer;
     }
-    | VARIABLE ASSIGN expression
+    ;
+
+assignment:
+    VARIABLE ASSIGN expression
     {
-        char buffer[128];
-        if(is_declared($1,0) == 0) {
-            declare($1,0);
-            snprintf(buffer, sizeof(buffer), "let %s = %s;\n", $1, $3);
+        char *buffer = malloc(strlen($1) + strlen($3) + 10);
+        if (is_declared($1, 0) == 0) {
+            declare($1, 0);
+            sprintf(buffer, "let %s = %s;", $1, $3);
         } else {
-            snprintf(buffer, sizeof(buffer), "%s = %s;\n", $1, $3);
+            sprintf(buffer, "%s = %s;", $1, $3);
         }
-        
-        emit(buffer);
-        $$ = "";
+        $$ = buffer;
+    }
+    ;
+
+if_statement:
+    IF expression COLON NEWLINE statements
+    {
+        char *buffer = malloc(strlen($2) + strlen($5) + 16);
+        sprintf(buffer, "if (%s) {\n%s\n}\n", $2, $5);
+        $$ = buffer;
     }
     ;
 
 expression:
     expression PLUS term
     {
-        $$ = malloc(128);
-        snprintf($$, sizeof($$), "%s + %s", $1, $3);
+        $$ = malloc(strlen($1) + strlen($3) + 3);
+        sprintf($$, "%s + %s", $1, $3);
     }
     | expression MINUS term
     {
-        $$ = malloc(128);
-        snprintf($$, sizeof($$), "%s - %s", $1, $3);
+        $$ = malloc(strlen($1) + strlen($3) + 3);
+        sprintf($$, "%s - %s", $1, $3);
     }
     | term
     {
@@ -110,27 +145,32 @@ expression:
 term:
     term MULT term
     {
-        $$ = malloc(128);
-        snprintf($$, sizeof($$), "%s * %s", $1, $3);
+        $$ = malloc(strlen($1) + strlen($3) + 3);
+        sprintf($$, "%s * %s", $1, $3);
     }
     | term DIVIDE term
     {
-        $$ = malloc(128);
-        snprintf($$, sizeof($$), "%s / %s", $1, $3);
+        $$ = malloc(strlen($1) + strlen($3) + 3);
+        sprintf($$, "%s / %s", $1, $3);
     }
     | NUMBER
     {
-        $$ = malloc(128);
-        snprintf($$, sizeof($$), "%d", $1);
+        $$ = malloc(16);
+        snprintf($$, 16, "%d", $1);
     }
     | LPAREN expression RPAREN
     {
-        $$ = malloc(128);
-        snprintf($$, sizeof($$), "(%s", $2);
-        strcat($$,")");
+        $$ = malloc(strlen($2) + 3);
+        sprintf($$, "(%s)", $2);
     }
-    |
-    VARIABLE 
+    | VARIABLE
+    {
+        $$ = strdup($1);
+    }
+    | STRING
+    {
+        $$ = strdup($1);
+    }
     ;
 
 %%
@@ -140,6 +180,5 @@ void yyerror(const char *s) {
 }
 
 int main() {
-    /* printf("Enter your program (end with Ctrl+D):\n"); */
     return yyparse();
 }
