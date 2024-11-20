@@ -49,13 +49,13 @@ void declare(char *name, int scope) {
 %token EQUALS ASSIGN NOT_EQUALS LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
 %left PLUS MINUS MULT DIVIDE
 %token LPAREN RPAREN LBRACE RBRACE COLON COMMA
-%token NEWLINE
-%type <str> expression term program statements statement print_statement assignment if_statement
+%token NEWLINE INDENT DEDENT
+%type <str> expression term program statements statement print_statement assignment if_statement block
 
 %%
 
 program:
-    statements{
+    statements {
         emit($1);
     }
     ;
@@ -85,6 +85,25 @@ statements:
         sprintf(buffer, "\n%s", $2);
         $$ = buffer;
     }
+    | NEWLINE
+    {
+        $$ = "\n";
+    }
+    | block
+    {
+        $$ = $1;
+    }
+    ;
+
+block:
+    INDENT block DEDENT
+    {
+        $$ = $2;  // the statements inside the block
+    }
+    | INDENT statements
+    {
+        $$ = $2;
+    }
     ;
 
 statement:
@@ -98,6 +117,7 @@ print_statement:
     {
         char *buffer = malloc(strlen($3) + 15);
         sprintf(buffer, "console.log(%s);", $3);
+        printf("here\n");
         $$ = buffer;
     }
     ;
@@ -117,10 +137,16 @@ assignment:
     ;
 
 if_statement:
-    IF expression COLON NEWLINE statements
+    IF expression COLON NEWLINE block
     {
         char *buffer = malloc(strlen($2) + strlen($5) + 16);
         sprintf(buffer, "if (%s) {\n%s\n}\n", $2, $5);
+        $$ = buffer;
+    }
+    | IF expression COLON NEWLINE block ELSE COLON NEWLINE block
+    {
+        char *buffer = malloc(strlen($2) + strlen($5) + strlen($9) + 32);
+        sprintf(buffer, "if (%s) {\n%s}\nelse {\n%s}", $2, $5, $9);
         $$ = buffer;
     }
     ;

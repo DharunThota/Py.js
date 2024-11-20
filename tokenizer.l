@@ -10,6 +10,7 @@ void print_token(const char *token, const char *value) {
     printf("<%s, %s>\n", token, value);
 }
 
+int previous_indent = 0;
 // Undefine yywrap macro to avoid conflicts
 #undef yywrap
 %}
@@ -17,7 +18,7 @@ void print_token(const char *token, const char *value) {
 
 %%
 
-\n              { print_token("NEWLINE", "\\n"); return NEWLINE; }
+\n              {  print_token("NEWLINE", "\\n"); return NEWLINE; }
 \r              { print_token("CARRIAGE RETURN", "\\r"); return NEWLINE; }
 "def"           { print_token("KEYWORD", "def"); return DEF; }
 "if"            { print_token("KEYWORD", "if"); return IF; }
@@ -66,7 +67,19 @@ void print_token(const char *token, const char *value) {
 ":"             { print_token("DELIMITER", ":"); return COLON; }
 ","             { print_token("DELIMITER", ","); return COMMA; }
 
-[ \t]+          { /* Ignore whitespace */ }
+[ ] 			{print_token("SPACE", " ");}
+
+[ \t]+          {
+	int current_indent = strlen(yytext);
+	if(current_indent > previous_indent) {
+		print_token("INDENT", yytext);
+		return INDENT;
+	} else if(current_indent < previous_indent) {
+		print_token("DEDENT", yytext);
+		return DEDENT;
+	}
+	return 0;
+}
 
 "#"[^\n]*       { /* Ignore comments */ }
 
