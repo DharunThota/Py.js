@@ -4,6 +4,10 @@
 #include <string.h>
 #define MAX 1024
 
+//variable decl
+int current_indent = 0;
+int previous_indent = 0;
+
 // Function declarations
 void yyerror(const char *s);
 int yylex(void);
@@ -43,14 +47,14 @@ void declare(char *name, int scope) {
 }
 
 %token <str> VARIABLE
-%token <str> DEF IF ELSE WHILE FOR RETURN BREAK CONTINUE PRINT
+%token <str> DEF IF ELSE WHILE FOR RETURN BREAK CONTINUE PRINT IN RANGE
 %token <str> STRING
-%token <intval> NUMBER
+%token <str> NUMBER
 %token EQUALS ASSIGN NOT_EQUALS LESS_THAN LESS_EQUAL GREATER_THAN GREATER_EQUAL
 %left PLUS MINUS MULT DIVIDE
 %token LPAREN RPAREN LBRACE RBRACE COLON COMMA
 %token NEWLINE INDENT DEDENT
-%type <str> expression term program statements statement print_statement assignment if_statement block
+%type <str> expression term program statements statement print_statement assignment if_statement for_statement while_statement relop
 
 %%
 
@@ -89,27 +93,33 @@ statements:
     {
         $$ = "\n";
     }
-    | block
-    {
-        $$ = $1;
-    }
+    // | block
+    // {
+    //     $$ = $1;
+    // }
     ;
 
-block:
-    INDENT block DEDENT
-    {
-        $$ = $2;  // the statements inside the block
-    }
-    | INDENT statements
-    {
-        $$ = $2;
-    }
-    ;
+// block:
+//     INDENT block DEDENT
+//     {
+//         $$ = $2;  // the statements inside the block
+//     }
+//     | INDENT statements
+//     {
+//         $$ = $2;
+//     }
+//     ;
 
 statement:
-    print_statement
+    // INDENT statement
+    // {
+    //     $$ = $2;
+    // }
+    | print_statement
     | assignment
     | if_statement
+    | for_statement
+    | while_statement
     ;
 
 print_statement:
@@ -117,7 +127,6 @@ print_statement:
     {
         char *buffer = malloc(strlen($3) + 15);
         sprintf(buffer, "console.log(%s);", $3);
-        printf("here\n");
         $$ = buffer;
     }
     ;
@@ -137,16 +146,34 @@ assignment:
     ;
 
 if_statement:
-    IF expression COLON NEWLINE block
+    IF expression COLON NEWLINE statements
     {
         char *buffer = malloc(strlen($2) + strlen($5) + 16);
         sprintf(buffer, "if (%s) {\n%s\n}\n", $2, $5);
         $$ = buffer;
     }
-    | IF expression COLON NEWLINE block ELSE COLON NEWLINE block
+    | IF expression COLON NEWLINE statements ELSE COLON NEWLINE statements
     {
         char *buffer = malloc(strlen($2) + strlen($5) + strlen($9) + 32);
         sprintf(buffer, "if (%s) {\n%s}\nelse {\n%s}", $2, $5, $9);
+        $$ = buffer;
+    }
+    ;
+
+for_statement:
+    FOR VARIABLE IN RANGE LPAREN NUMBER COMMA NUMBER RPAREN COLON NEWLINE statements
+    {
+        char *buffer = malloc(strlen($2) + strlen($6) + strlen($8) + strlen($12) + 32);
+        sprintf(buffer, "for (let %s = %s; %s < %s; %s++) {\n%s\n}\n", $2, $6, $2, $8, $2, $12);
+        $$ = buffer;
+    }
+    ;
+
+while_statement:
+    WHILE expression COLON NEWLINE statements
+    {
+        char *buffer = malloc(strlen($2) + strlen($5) + 16);
+        sprintf(buffer, "while (%s) {\n%s\n}\n", $2, $5);
         $$ = buffer;
     }
     ;
@@ -162,9 +189,41 @@ expression:
         $$ = malloc(strlen($1) + strlen($3) + 3);
         sprintf($$, "%s - %s", $1, $3);
     }
+    | expression relop expression
+    {
+        $$ = malloc(strlen($1) + strlen($2) + strlen($3) + 3);
+        sprintf($$, "%s %s %s", $1, $2, $3);
+    }
     | term
     {
         $$ = $1;
+    }
+    ;
+
+relop:
+    EQUALS
+    {
+        $$ = "==";
+    }
+    | NOT_EQUALS
+    {
+        $$ = "!=";
+    }
+    | LESS_THAN
+    {
+        $$ = "<";
+    }
+    | LESS_EQUAL
+    {
+        $$ = "<=";
+    }
+    | GREATER_THAN
+    {
+        $$ = ">";
+    }
+    | GREATER_EQUAL
+    {
+        $$ = ">=";
     }
     ;
 
@@ -182,7 +241,7 @@ term:
     | NUMBER
     {
         $$ = malloc(16);
-        snprintf($$, 16, "%d", $1);
+        snprintf($$, 16, "%s", $1);
     }
     | LPAREN expression RPAREN
     {

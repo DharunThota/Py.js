@@ -6,11 +6,13 @@
 // For token storage
 #include "parser.tab.h"
 
+extern int current_indent;
+extern int previous_indent;
+
 void print_token(const char *token, const char *value) {
     printf("<%s, %s>\n", token, value);
 }
 
-int previous_indent = 0;
 // Undefine yywrap macro to avoid conflicts
 #undef yywrap
 %}
@@ -18,13 +20,15 @@ int previous_indent = 0;
 
 %%
 
-\n              {  print_token("NEWLINE", "\\n"); return NEWLINE; }
+\n              {  print_token("NEWLINE", "\\n"); previous_indent = current_indent; current_indent = 0 ; return NEWLINE; }
 \r              { print_token("CARRIAGE RETURN", "\\r"); return NEWLINE; }
 "def"           { print_token("KEYWORD", "def"); return DEF; }
 "if"            { print_token("KEYWORD", "if"); return IF; }
 "else"          { print_token("KEYWORD", "else"); return ELSE; }
 "while"         { print_token("KEYWORD", "while"); return WHILE; }
 "for"           { print_token("KEYWORD", "for"); return FOR; }
+"in"            { print_token("KEYWORD", "in"); return IN; }
+"range"         { print_token("KEYWORD", "range"); return RANGE; }
 "return"        { print_token("KEYWORD", "return"); return RETURN; }
 "break"         { print_token("KEYWORD", "break"); return BREAK; }
 "continue"      { print_token("KEYWORD", "continue"); return CONTINUE; }
@@ -38,7 +42,7 @@ int previous_indent = 0;
 
 [0-9]+ {
     print_token("NUMBER", yytext);
-    yylval.intval = atoi(yytext);
+    yylval.str = strdup(yytext);
     return NUMBER;
 }
 
@@ -69,16 +73,16 @@ int previous_indent = 0;
 
 [ ] 			{print_token("SPACE", " ");}
 
-[ \t]+          {
-	int current_indent = strlen(yytext);
-	if(current_indent > previous_indent) {
-		print_token("INDENT", yytext);
-		return INDENT;
-	} else if(current_indent < previous_indent) {
-		print_token("DEDENT", yytext);
-		return DEDENT;
-	}
-	return 0;
+[\t]+       {
+	// current_indent = strlen(yytext);
+    // printf("%d", current_indent);
+	// if(current_indent > previous_indent) {
+	// 	print_token("INDENT", yytext);
+	// 	return INDENT;
+	// } else if(current_indent < previous_indent) {
+	// 	print_token("DEDENT", yytext);
+	// 	return DEDENT;
+	// }
 }
 
 "#"[^\n]*       { /* Ignore comments */ }
