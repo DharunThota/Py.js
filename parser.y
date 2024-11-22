@@ -54,7 +54,7 @@ void declare(char *name, int scope) {
 %left PLUS MINUS MULT DIVIDE
 %token LPAREN RPAREN LBRACE RBRACE COLON COMMA
 %token NEWLINE INDENT DEDENT
-%type <str> expression term program statements statement print_statement assignment if_statement for_statement while_statement relop
+%type <str> expression term program statements statement print_statement assignment if_statement for_statement while_statement relop function_definition parameter_list
 
 %%
 
@@ -111,15 +111,12 @@ statements:
 //     ;
 
 statement:
-    // INDENT statement
-    // {
-    //     $$ = $2;
-    // }
-    | print_statement
+    print_statement
     | assignment
     | if_statement
     | for_statement
     | while_statement
+    | function_definition
     ;
 
 print_statement:
@@ -175,6 +172,31 @@ while_statement:
         char *buffer = malloc(strlen($2) + strlen($5) + 16);
         sprintf(buffer, "while (%s) {\n%s\n}\n", $2, $5);
         $$ = buffer;
+    }
+    ;
+
+function_definition:
+    DEF VARIABLE LPAREN parameter_list RPAREN COLON NEWLINE statements
+    {
+        char *buffer = malloc(1024);
+        sprintf(buffer, "function %s(%s) {\n%s}\n", $2, $4, $8);
+        $$ = buffer;
+    }
+    ;
+
+parameter_list:
+    /* empty */
+    {
+        $$ = "";
+    }
+    | VARIABLE
+    {
+        $$ = strdup($1);
+    }
+    | parameter_list COMMA VARIABLE
+    {
+        $$ = malloc(strlen($1) + strlen($3) + 2);
+        sprintf($$, "%s, %s", $1, $3);
     }
     ;
 
